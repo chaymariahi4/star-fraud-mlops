@@ -1,0 +1,46 @@
+# Environnements Python
+venv/
+venv_old/
+
+# Secrets
+.env
+StarGenAI/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+
+# Bases de données locales
+*.db
+
+# MLflow
+mlruns/
+mlops_storage/
+StarGenAI/mlops_storage/
+
+# Rapports Evidently générés
+StarGenAI/mlops/monitoring_reports/*.html
+StarGenAI/mlops/monitoring_reports/*.json
+
+# Données sensibles ou volumineuses
+StarGenAI/Data/raw/
+StarGenAI/Data/clean/
+StarGenAI/Data/annotated/
+StarGenAI/Data/images/
+StarGenAI/Data/figures/
+StarGenAI/Data/yolo_dataset/
+StarGenAI/Data/yolo_dataset.zip
+StarGenAI/Data/*.csv
+StarGenAI/Data/processed/*.csv
+StarGenAI/Data/*.jsonl
+
+# Modèles générés
+StarGenAI/Models/
+
+# Fichiers temporaires
+uploads/
+*.log
