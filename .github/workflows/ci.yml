@@ -57,7 +57,6 @@ jobs:
 
   frontend-build:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('package.json') != '' }}
 
     steps:
       - name: Checkout repository
