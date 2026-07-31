@@ -44,3 +44,13 @@ StarGenAI/Models/
 # Fichiers temporaires
 uploads/
 *.log
+
+# Sauvegardes
+requirements_backup.txt
+requirements_backup_original.txt
+
+# Fichiers de test
+sinistre.json
+temp_test_image_request.py
+test_image.py
+extraction_result.txt
