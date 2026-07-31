@@ -86,6 +86,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    return {
+        "status": "healthy",
+        "service": "STAR Decision Support API",
+    }
+
+
 # app.include_router(fraud_router)
 
 BASE_DIR = Path(__file__).resolve().parent
