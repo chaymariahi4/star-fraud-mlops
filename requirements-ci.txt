@@ -13,3 +13,4 @@ python-multipart
 pydantic
 requests
 shap
+ultralytics
