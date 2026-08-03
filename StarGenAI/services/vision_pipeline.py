@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -5,7 +8,11 @@ from ultralytics import YOLO
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-MODEL_PATH = BASE_DIR / "models" / "yolov8_damage.pt"
+MODEL_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "models"
+    / "yolov8_damage.pt"
+)
 
 CLASS_THRESHOLDS = {
     "Bonnet": 0.35,
@@ -23,12 +30,14 @@ ANNOTATED_DIR = BASE_DIR / "data" / "annotated"
 ANNOTATED_DIR.mkdir(parents=True, exist_ok=True)
 
 
-if not MODEL_PATH.exists():
-    raise FileNotFoundError(
-        f"Modèle YOLO introuvable : {MODEL_PATH}"
-    )
+@lru_cache(maxsize=1)
+def get_yolo_model() -> Any:
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(
+            f"Modèle YOLO introuvable : {MODEL_PATH}"
+        )
 
-yolo_model = YOLO(str(MODEL_PATH))
+    return YOLO(str(MODEL_PATH))
 
 
 def detect_damages(
@@ -56,7 +65,9 @@ def detect_damages(
         }
 
     try:
-        results = yolo_model.predict(
+        model = get_yolo_model()
+
+        results = model.predict(
             source=str(image_path),
 
             # Plus grand que 640 pour récupérer davantage
@@ -85,7 +96,7 @@ def detect_damages(
             for box in result.boxes:
                 class_id = int(box.cls.item())
                 confidence = float(box.conf.item())
-                class_name = str(yolo_model.names[class_id])
+                class_name = str(model.names[class_id])
 
                 bbox = [
                     round(float(value), 2)
