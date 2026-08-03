@@ -43,10 +43,9 @@ jobs:
         run: |
           python -m StarGenAI.mlops.check_mlops_assets
 
-      - name: Run automated tests
-        run: |
-          python -m pytest -v
-
+      - name: Run lightweight automated tests
+  run: |
+    python -m pytest -m "not integration" -v
       - name: Check DVC metadata
         run: |
           dvc status

@@ -1,11 +1,31 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+import app as app_module
 from fastapi.testclient import TestClient
 
-from app import app
+
+client = TestClient(app_module.app)
 
 
-client = TestClient(app)
+@dataclass
+class FakeModelVersion:
+    version: str = "3"
+    run_id: str = "fake-run-id"
+    source: str = "fake-model-source"
+
+
+class FakeMlflowClient:
+    def get_model_version_by_alias(
+        self,
+        name: str,
+        alias: str,
+    ) -> FakeModelVersion:
+        assert name == "STAR_Fraud_IsolationForest_Model"
+        assert alias == "champion"
+
+        return FakeModelVersion()
 
 
 def test_health_check() -> None:
@@ -15,7 +35,15 @@ def test_health_check() -> None:
     assert response.json()["status"] == "healthy"
 
 
-def test_mlops_model_status() -> None:
+def test_mlops_model_status(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        app_module,
+        "MlflowClient",
+        FakeMlflowClient,
+    )
+
     response = client.get(
         "/api/mlops/model-status"
     )
@@ -26,4 +54,5 @@ def test_mlops_model_status() -> None:
 
     assert payload["success"] is True
     assert payload["alias"] == "champion"
-    assert int(payload["version"]) >= 1
+    assert payload["version"] == 3 
+    assert payload["run_id"] == "fake-run-id"

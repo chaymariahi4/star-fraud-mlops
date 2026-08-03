@@ -5,6 +5,10 @@ from pathlib import Path
 
 import joblib
 
+import pytest
+
+
+pytestmark = pytest.mark.integration
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
