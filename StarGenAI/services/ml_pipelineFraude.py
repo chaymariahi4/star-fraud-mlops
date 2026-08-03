@@ -1,5 +1,6 @@
-# api/ml_pipeline.py
+from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from StarGenAI.services.mlflow_model_loader import (
     load_fraud_model,
     load_fraud_scaler,
 )
+
 
 STAR_DIR = Path(__file__).resolve().parents[1]
 
@@ -46,31 +48,71 @@ MODEL_FEATURES = [
     "delai_souscription_sinistre",
     "PRIME",
     "annee_sinistre",
-
 ]
 
 
-isolation_model = load_fraud_model()
-scaler = load_fraud_scaler()
+@lru_cache(maxsize=1)
+def get_model() -> Any:
+    """
+    Retourne le modèle MLflow actif.
+
+    Aucun chargement n'est effectué lors
+    de l'import de ce module.
+    """
+
+    return load_fraud_model()
+
+
+@lru_cache(maxsize=1)
+def get_scaler() -> Any:
+    """
+    Retourne le scaler du modèle.
+
+    Aucun chargement n'est effectué lors
+    de l'import de ce module.
+    """
+
+    return load_fraud_scaler()
+
+
+def clear_ml_pipeline_cache() -> None:
+    """
+    Vide les caches locaux du pipeline tabulaire.
+    """
+
+    get_model.cache_clear()
+    get_scaler.cache_clear()
 
 
 def prepare_ml_features(
-    sinistre_data: dict[str, Any]
+    sinistre_data: dict[str, Any],
 ) -> pd.DataFrame:
-    row = {}
+    """
+    Prépare les 16 variables attendues par
+    Isolation Forest dans le bon ordre.
+    """
+
+    row: dict[str, float] = {}
 
     for feature in MODEL_FEATURES:
-        value = sinistre_data.get(feature, 0)
+        value = sinistre_data.get(
+            feature,
+            0,
+        )
 
         if value is None:
             value = 0
 
         try:
-            value = float(value)
-        except (TypeError, ValueError):
-            value = 0.0
+            numeric_value = float(value)
 
-        row[feature] = value
+        except (TypeError, ValueError):
+            numeric_value = 0.0
+
+        if not np.isfinite(numeric_value):
+            numeric_value = 0.0
+
+        row[feature] = numeric_value
 
     return pd.DataFrame(
         [row],
@@ -79,40 +121,90 @@ def prepare_ml_features(
 
 
 def compute_ml_score(
-    sinistre_data: dict[str, Any]
+    sinistre_data: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Transforme le score Isolation Forest en score de risque 0-1.
+    Calcule le score tabulaire de risque avec
+    Isolation Forest.
+
+    Le modèle et le scaler sont chargés uniquement
+    lors du premier appel à cette fonction.
     """
 
-    X = prepare_ml_features(sinistre_data)
-    X_scaled = scaler.transform(X)
+    model = get_model()
+    scaler = get_scaler()
 
-    decision_value = float(
-        isolation_model.decision_function(X_scaled)[0]
+    features_dataframe = prepare_ml_features(
+        sinistre_data
     )
 
-    prediction = int(
-        isolation_model.predict(X_scaled)[0]
-    )
+    try:
+        scaled_features = scaler.transform(
+            features_dataframe
+        )
 
-    # Plus decision_value est négatif, plus l'observation est atypique.
-    # Transformation monotone vers 0-1.
+    except Exception as exc:
+        raise RuntimeError(
+            "Erreur lors de la standardisation "
+            "des variables du sinistre."
+        ) from exc
+
+    try:
+        decision_value = float(
+            model.decision_function(
+                scaled_features
+            )[0]
+        )
+
+        prediction = int(
+            model.predict(
+                scaled_features
+            )[0]
+        )
+
+    except Exception as exc:
+        raise RuntimeError(
+            "Erreur lors de la prédiction "
+            "Isolation Forest."
+        ) from exc
+
+    # Plus la décision est négative,
+    # plus le dossier est statistiquement atypique.
     score_ml = 1.0 / (
-        1.0 + np.exp(8.0 * decision_value)
+        1.0
+        + np.exp(
+            8.0 * decision_value
+        )
     )
 
-    explanation = explain_isolation_forest(
-        X=X,
-        model=isolation_model,
-        scaler=scaler,
-        reference_path=REFERENCE_PATH,
-        max_factors=5,
-        min_factors=3,
-    )
+    try:
+        explanation = explain_isolation_forest(
+            X=features_dataframe,
+            model=model,
+            scaler=scaler,
+            reference_path=REFERENCE_PATH,
+            max_factors=5,
+            min_factors=3,
+        )
+
+    except Exception as exc:
+        # L'explication ne doit pas bloquer
+        # la prédiction principale.
+        explanation = {
+            "success": False,
+            "message": (
+                "L'explication détaillée du score "
+                "ML n'a pas pu être générée."
+            ),
+            "error": str(exc),
+            "factors": [],
+        }
 
     return {
-        "score_ml": round(float(score_ml), 4),
+        "score_ml": round(
+            float(score_ml),
+            4,
+        ),
         "raw_decision_function": round(
             decision_value,
             6,
@@ -121,4 +213,6 @@ def compute_ml_score(
         "prediction_if": prediction,
         "features_used": MODEL_FEATURES,
         "explanation": explanation,
+        "model_source": "mlflow_registry",
+        "model_alias": "champion",
     }
