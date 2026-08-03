@@ -99,12 +99,37 @@ def health_check() -> dict[str, str]:
 
 BASE_DIR = Path(__file__).resolve().parent
 STAR_DIR = BASE_DIR / "StarGenAI"
+from functools import lru_cache
 
-DATA_PATH = STAR_DIR / "Data" / "processed" / "feature_dataset.csv"
+
+DATA_PATH = (
+    BASE_DIR
+    / "StarGenAI"
+    / "Data"
+    / "processed"
+    / "feature_dataset.csv"
+)
+
+
+@lru_cache(maxsize=1)
+def get_feature_dataset() -> pd.DataFrame:
+    """
+    Charge le dataset Cross-Sell uniquement lorsqu'une
+    fonctionnalité qui en dépend est réellement appelée.
+    """
+
+    if not DATA_PATH.exists():
+        raise FileNotFoundError(
+            f"Dataset Cross-Sell introuvable : {DATA_PATH}"
+        )
+
+    return pd.read_csv(
+        DATA_PATH,
+        low_memory=False,
+    )
 MODELS_PATH = STAR_DIR / "Models" / "recommendation_models.pkl"
 FEATURES_PATH = STAR_DIR / "Models" / "model_features.pkl"
 
-df = pd.read_csv(DATA_PATH)
 models = joblib.load(MODELS_PATH)
 model_features = joblib.load(FEATURES_PATH)
 
@@ -470,14 +495,38 @@ def home():
 
 @app.get("/api/clients")
 def get_clients():
+    try:
+        dataframe = get_feature_dataset()
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Le service de recommandation est "
+                "temporairement indisponible : "
+                "dataset Cross-Sell absent."
+            ),
+        ) from exc
+
     return {
-        "clients": df["client_id"].astype(str).tolist()
+        "clients": dataframe["client_id"].astype(str).tolist()
     }
 
 
 @app.get("/api/recommendations/{client_id}")
 def get_recommendations(client_id: str):
-    client = df[df["client_id"].astype(str) == client_id]
+    try:
+        dataframe = get_feature_dataset()
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Le service de recommandation est "
+                "temporairement indisponible : "
+                "dataset Cross-Sell absent."
+            ),
+        ) from exc
+
+    client = dataframe[dataframe["client_id"].astype(str) == client_id]
 
     if client.empty:
         raise HTTPException(status_code=404, detail="Client introuvable")
