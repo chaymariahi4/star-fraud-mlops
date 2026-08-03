@@ -130,8 +130,56 @@ def get_feature_dataset() -> pd.DataFrame:
 MODELS_PATH = STAR_DIR / "Models" / "recommendation_models.pkl"
 FEATURES_PATH = STAR_DIR / "Models" / "model_features.pkl"
 
-models = joblib.load(MODELS_PATH)
-model_features = joblib.load(FEATURES_PATH)
+@lru_cache(maxsize=1)
+def get_recommendation_models() -> dict[str, Any]:
+    """
+    Charge les modèles Cross-Sell uniquement lors
+    du premier appel à l'endpoint de recommandation.
+    """
+
+    if not MODELS_PATH.exists():
+        raise FileNotFoundError(
+            f"Modèles Cross-Sell introuvables : {MODELS_PATH}"
+        )
+
+    try:
+        loaded_models = joblib.load(MODELS_PATH)
+    except Exception as exc:
+        raise RuntimeError(
+            "Impossible de charger les modèles Cross-Sell : "
+            f"{MODELS_PATH}"
+        ) from exc
+
+    if not isinstance(loaded_models, dict):
+        raise TypeError(
+            "Le fichier recommendation_models.pkl doit "
+            "contenir un dictionnaire de modèles."
+        )
+
+    return loaded_models
+
+
+@lru_cache(maxsize=1)
+def get_model_features() -> list[str]:
+    """
+    Charge la liste des variables utilisées par les
+    modèles Cross-Sell uniquement lors du premier appel.
+    """
+
+    if not FEATURES_PATH.exists():
+        raise FileNotFoundError(
+            f"Liste des features introuvable : {FEATURES_PATH}"
+        )
+
+    try:
+        loaded_features = joblib.load(FEATURES_PATH)
+    except Exception as exc:
+        raise RuntimeError(
+            "Impossible de charger les features Cross-Sell : "
+            f"{FEATURES_PATH}"
+        ) from exc
+
+    return list(loaded_features)
 
 PRODUCT_COLUMNS = [
     "possede_auto",
@@ -199,14 +247,23 @@ FEATURE_LABELS = {
 }
 
 
-def get_explainer(model):
-    return shap.TreeExplainer(model)
+@lru_cache(maxsize=None)
+def get_product_explainer(product_col: str) -> Any:
+    """
+    Crée et met en cache l'explainer SHAP d'un produit
+    uniquement lorsqu'une explication est demandée.
+    """
 
+    models = get_recommendation_models()
 
-EXPLAINERS = {
-    product_col: get_explainer(model)
-    for product_col, model in models.items()
-}
+    if product_col not in models:
+        raise KeyError(
+            f"Modèle Cross-Sell absent pour : {product_col}"
+        )
+
+    return shap.TreeExplainer(
+        models[product_col]
+    )
 
 
 def decode_one_hot(client_row, prefix: str, default_value: str):
@@ -516,23 +573,41 @@ def get_clients():
 def get_recommendations(client_id: str):
     try:
         dataframe = get_feature_dataset()
+        models = get_recommendation_models()
+        model_features = get_model_features()
+
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=503,
             detail=(
-                "Le service de recommandation est "
-                "temporairement indisponible : "
-                "dataset Cross-Sell absent."
+                "Le service Cross-Sell est temporairement "
+                "indisponible : données ou modèles absents."
             ),
         ) from exc
 
-    client = dataframe[dataframe["client_id"].astype(str) == client_id]
+    except (RuntimeError, TypeError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Erreur lors du chargement des ressources "
+                "du moteur Cross-Sell."
+            ),
+        ) from exc
+
+    client = dataframe[
+        dataframe["client_id"].astype(str) == client_id
+    ]
 
     if client.empty:
-        raise HTTPException(status_code=404, detail="Client introuvable")
+        raise HTTPException(
+            status_code=404,
+            detail="Client introuvable",
+        )
 
     client_row = client.iloc[0]
     X = client[model_features]
+
+    # suite du traitement...
 
     scored_products = []
 
