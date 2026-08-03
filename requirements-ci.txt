@@ -12,3 +12,4 @@ evidently
 python-multipart
 pydantic
 requests
+shap
