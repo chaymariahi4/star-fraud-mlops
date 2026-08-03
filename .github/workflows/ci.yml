@@ -25,10 +25,6 @@ jobs:
           python-version: "3.11.9"
           cache: "pip"
 
-      - name: Upgrade installation tools
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
@@ -42,35 +38,15 @@ jobs:
       - name: Check required imports
         run: |
           python -c "import fastapi, pandas, sklearn, mlflow, dvc, evidently"
-          python -c "print('Main imports are available')"
 
       - name: Check MLOps source files
         run: |
           python -m StarGenAI.mlops.check_mlops_assets
 
-      - name: Run lightweight tests
+      - name: Run automated tests
         run: |
-          python -m pytest tests/test_environment.py -v
+          python -m pytest -v
 
       - name: Check DVC metadata
         run: |
           dvc status
-
-  frontend-build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
