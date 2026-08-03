@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+httpx
+pytest
+pandas
+numpy
+scikit-learn
+joblib
+mlflow
+dvc
+evidently
+python-multipart
+pydantic
+requests
