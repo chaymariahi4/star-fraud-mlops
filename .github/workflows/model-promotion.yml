@@ -1,0 +1,98 @@
+name: STAR Fraud Model Promotion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fraud-model-promotion
+  cancel-in-progress: false
+
+jobs:
+  validate-and-promote:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+
+    steps:
+      - name: Display execution context
+        shell: powershell
+        run: |
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "Machine: $env:COMPUTERNAME"
+
+      - name: Synchronize local project
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          git fetch origin
+          git checkout master
+          git pull origin master
+
+      - name: Check Python environment
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe --version
+          .\venv\Scripts\python.exe -c "import mlflow; print('MLflow', mlflow.__version__)"
+
+      - name: Display current aliases
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+
+          .\venv\Scripts\python.exe -c @"
+          import mlflow
+          from mlflow import MlflowClient
+          from StarGenAI.mlops.mlflow_config import DATABASE_URI
+
+          model_name = "STAR_Fraud_IsolationForest_Model"
+
+          mlflow.set_tracking_uri(DATABASE_URI)
+          client = MlflowClient()
+
+          for alias in ("candidate", "champion"):
+              try:
+                  version = client.get_model_version_by_alias(
+                      name=model_name,
+                      alias=alias,
+                  )
+                  print(f"{alias}: version {version.version}")
+              except Exception:
+                  print(f"{alias}: absent")
+          "@
+
+      - name: Validate and promote candidate
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+
+          .\venv\Scripts\python.exe `
+            -m StarGenAI.mlops.validate_and_promote_fraud_model
+
+      - name: Verify promoted champion
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+
+          .\venv\Scripts\python.exe -c @"
+          import mlflow
+          from mlflow import MlflowClient
+          from StarGenAI.mlops.mlflow_config import DATABASE_URI
+
+          model_name = "STAR_Fraud_IsolationForest_Model"
+
+          mlflow.set_tracking_uri(DATABASE_URI)
+          client = MlflowClient()
+
+          champion = client.get_model_version_by_alias(
+              name=model_name,
+              alias="champion",
+          )
+
+          print(f"Champion actif : version {champion.version}")
+          print(f"Run MLflow : {champion.run_id}")
+          "@
