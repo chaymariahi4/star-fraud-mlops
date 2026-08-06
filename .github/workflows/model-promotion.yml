@@ -54,24 +54,8 @@ jobs:
 
       - name: Verify promoted champion
         shell: powershell
-        run: |
+        run: 
           Set-Location "C:\Users\lenovo\StarProject\backend"
 
-          .\venv\Scripts\python.exe -c @"
-          import mlflow
-          from mlflow import MlflowClient
-          from StarGenAI.mlops.mlflow_config import DATABASE_URI
-
-          model_name = "STAR_Fraud_IsolationForest_Model"
-
-          mlflow.set_tracking_uri(DATABASE_URI)
-          client = MlflowClient()
-
-          champion = client.get_model_version_by_alias(
-              name=model_name,
-              alias="champion",
-          )
-
-          print(f"Champion actif : version {champion.version}")
-          print(f"Run MLflow : {champion.run_id}")
-          "@
+          .\venv\Scripts\python.exe `
+           -m StarGenAI.mlops.show_champion
