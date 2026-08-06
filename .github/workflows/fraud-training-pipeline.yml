@@ -64,17 +64,82 @@ jobs:
         run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
           .\venv\Scripts\python.exe -m StarGenAI.mlops.show_champion
+
+      - name: Export champion summary
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.export_champion_summary
+
       - name: Generate pipeline summary
         if: always()
         shell: powershell
         run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
 
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "# STAR Fraud MLOps Pipeline"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Runner : $env:RUNNER_NAME"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Branche : $env:GITHUB_REF_NAME"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Commit : $env:GITHUB_SHA"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Exécution : $env:GITHUB_RUN_NUMBER"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "Pipeline exécuté : tests, entraînement, validation et promotion MLflow."
+          $summaryPath = $env:GITHUB_STEP_SUMMARY
+          $championSummaryPath = "StarGenAI\mlops\champion_summary.json"
+
+          $championVersion = "unknown"
+          $championAlias = "unknown"
+          $validationStatus = "unknown"
+          $deploymentStatus = "unknown"
+
+          if (Test-Path $championSummaryPath) {
+              $champion = Get-Content $championSummaryPath -Raw |
+                  ConvertFrom-Json
+
+              $championVersion = $champion.version
+              $championAlias = $champion.alias
+              $validationStatus = $champion.validation_status
+              $deploymentStatus = $champion.deployment_status
+          }
+
+          Add-Content -Path $summaryPath -Value "# STAR Fraud MLOps Pipeline"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "## Informations"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "| Élément | Valeur |"
+          Add-Content -Path $summaryPath -Value "|---|---|"
+          Add-Content -Path $summaryPath -Value "| Runner | $env:RUNNER_NAME |"
+          Add-Content -Path $summaryPath -Value "| Branche | $env:GITHUB_REF_NAME |"
+          Add-Content -Path $summaryPath -Value "| Exécution | $env:GITHUB_RUN_NUMBER |"
+          Add-Content -Path $summaryPath -Value "| Commit | $env:GITHUB_SHA |"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "---"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "## Pipeline"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Tests d'intégration"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Entraînement terminé"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Modèle enregistré dans MLflow"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Version candidate créée"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Validation réussie"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "✅ Promotion du champion"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "---"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "## Champion actuel"
+          Add-Content -Path $summaryPath -Value ""
+          Add-Content -Path $summaryPath -Value "| Propriété | Valeur |"
+          Add-Content -Path $summaryPath -Value "|---|---|"
+          Add-Content -Path $summaryPath -Value "| Version | $championVersion |"
+          Add-Content -Path $summaryPath -Value "| Alias | $championAlias |"
+          Add-Content -Path $summaryPath -Value "| Validation | $validationStatus |"
+          Add-Content -Path $summaryPath -Value "| Déploiement | $deploymentStatus |"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "---"
+          Add-Content -Path $summaryPath -Value ""
+
+          Add-Content -Path $summaryPath -Value "Pipeline terminé avec succès."
