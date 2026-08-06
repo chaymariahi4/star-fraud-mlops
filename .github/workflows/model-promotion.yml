@@ -43,28 +43,7 @@ jobs:
         shell: powershell
         run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
-
-          .\venv\Scripts\python.exe -c @"
-          import mlflow
-          from mlflow import MlflowClient
-          from StarGenAI.mlops.mlflow_config import DATABASE_URI
-
-          model_name = "STAR_Fraud_IsolationForest_Model"
-
-          mlflow.set_tracking_uri(DATABASE_URI)
-          client = MlflowClient()
-
-          for alias in ("candidate", "champion"):
-              try:
-                  version = client.get_model_version_by_alias(
-                      name=model_name,
-                      alias=alias,
-                  )
-                  print(f"{alias}: version {version.version}")
-              except Exception:
-                  print(f"{alias}: absent")
-          "@
-
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.show_aliases
       - name: Validate and promote candidate
         shell: powershell
         run: |
