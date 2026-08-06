@@ -1,0 +1,66 @@
+name: STAR Fraud Training Pipeline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  train-validate-promote:
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+
+    steps:
+      - name: Display execution context
+        shell: powershell
+        run: |
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "Machine: $env:COMPUTERNAME"
+
+      - name: Synchronize local project
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          git fetch origin
+          git checkout master
+          git pull origin master
+
+      - name: Check Python environment
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe --version
+          .\venv\Scripts\python.exe -c "import mlflow; print('MLflow', mlflow.__version__)"
+
+      - name: Run local integration tests
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m pytest -m integration -v
+
+      - name: Train and register candidate
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.train_fraud_model
+
+      - name: Display aliases after training
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.show_aliases
+
+      - name: Validate and promote candidate
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.validate_and_promote_fraud_model
+
+      - name: Verify promoted champion
+        shell: powershell
+        run: |
+          Set-Location "C:\Users\lenovo\StarProject\backend"
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.show_champion
