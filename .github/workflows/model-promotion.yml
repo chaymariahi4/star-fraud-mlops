@@ -44,18 +44,15 @@ jobs:
         run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
           .\venv\Scripts\python.exe -m StarGenAI.mlops.show_aliases
+
       - name: Validate and promote candidate
         shell: powershell
         run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
-
-          .\venv\Scripts\python.exe `
-            -m StarGenAI.mlops.validate_and_promote_fraud_model
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.validate_and_promote_fraud_model
 
       - name: Verify promoted champion
         shell: powershell
-        run: 
+        run: |
           Set-Location "C:\Users\lenovo\StarProject\backend"
-
-          .\venv\Scripts\python.exe `
-           -m StarGenAI.mlops.show_champion
+          .\venv\Scripts\python.exe -m StarGenAI.mlops.show_champion
